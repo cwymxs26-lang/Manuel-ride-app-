@@ -1,49 +1,117 @@
-<script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxlZNpKVKXhPMq9-tcr-t2ba94GbXiDBEI2PKh9zRkpwgiduy0TPh7HuBgbhywLzh2Q/exec";
-    let viajeId = "";
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manuel Ride</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; display: flex; justify-content: center; }
+        .app { width: 100%; max-width: 450px; background: white; min-height: 100vh; padding: 20px; box-sizing: border-box; }
+        h1 { color: #1a73e8; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        #map { height: 350px; width: 100%; border-radius: 12px; margin: 15px 0; border: 1px solid #ccc; }
+        .distancia { background: #e8f0fe; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; color: #1967d2; }
+        button { width: 100%; padding: 16px; background: #1a73e8; color: white; border: none; border-radius: 8px; font-size: 18px; cursor: pointer; }
+        .espera-container { text-align: center; padding: 40px; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="contenido-app" class="app">
+        <h1>Manuel Ride</h1>
+        <input type="text" id="nombre" placeholder="Nombre" required>
+        <input type="text" id="apellido" placeholder="Apellido">
+        <input type="tel" id="telefono" placeholder="WhatsApp / Teléfono" required>
+        <div id="map"></div>
+        <div id="distanciaText" class="distancia">Mueve los puntos A y B</div>
+        <button id="btnSolicitar" onclick="enviarPedido()">SOLICITAR VIAJE</button>
+    </div>
 
-    function enviarPedido() {
-        const btn = document.getElementById('btnSolicitar');
-        const data = {
-            nombre: document.getElementById("nombre").value,
-            apellido: document.getElementById("apellido").value,
-            telefono: document.getElementById("telefono").value,
-            origen: markerA.getPosition().toString(),
-            destino: markerB.getPosition().toString(),
-            distancia: document.getElementById("distanciaText").innerText
-        };
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyClCjHlOhbNpJvkgnV-V4fb9vn4PpVhGgY&callback=initMap" async defer></script>
 
-        btn.innerText = "ENVIANDO...";
-        btn.disabled = true;
+    <script>
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzforKusqa9GM3Lq-B3TqczqmXFFAiPkRtQ2IIqHTIyGlUY89AsoJiETg_0t_niGIK-kA/exec";
+        let map, markerA, markerB, directionsService, directionsRenderer;
 
-        fetch(WEB_APP_URL, { method: "POST", body: JSON.stringify(data) })
-        .then(res => res.json())
-        .then(res => {
-            viajeId = res.id;
-            document.body.innerHTML = `
-                <div style="text-align:center; padding:50px;">
-                    <h2 style="color:#1a73e8;">¡Solicitud Recibida!</h2>
-                    <p>ID: ${viajeId}</p>
-                    <div id="status">⏳ Esperando presupuesto de Manuel...</div>
-                    <p style="font-size:12px; color:gray;">No cierres esta ventana.</p>
-                </div>`;
-            iniciarRastreoPrecio();
-        });
-    }
+        function initMap() {
+            const gdl = { lat: 20.6597, lng: -103.3496 };
+            map = new google.maps.Map(document.getElementById("map"), { zoom: 13, center: gdl, disableDefaultUI: true, zoomControl: true });
+            markerA = new google.maps.Marker({ position: {lat: 20.66, lng: -103.35}, map, draggable: true, label: "A" });
+            markerB = new google.maps.Marker({ position: {lat: 20.67, lng: -103.36}, map, draggable: true, label: "B" });
+            markerA.addListener("dragend", calcRuta);
+            markerB.addListener("dragend", calcRuta);
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true, map });
+        }
 
-    function iniciarRastreoPrecio() {
-        const intervalo = setInterval(() => {
-            fetch(`${WEB_APP_URL}?checkPrice=true&id=${viajeId}`)
-            .then(res => res.json())
-            .then(res => {
-                if (res.precio && res.precio !== "") {
-                    clearInterval(intervalo);
-                    document.getElementById('status').innerHTML = `
-                        <h3 style="color:#28a745;">Monto a pagar: $${res.precio}</h3>
-                        <button onclick="location.reload()" style="background:#1a73e8; color:white; border:none; padding:15px; border-radius:8px;">ACEPTAR Y FINALIZAR</button>
-                    `;
+        function calcRuta() {
+            directionsService.route({
+                origin: markerA.getPosition(),
+                destination: markerB.getPosition(),
+                travelMode: 'DRIVING'
+            }, (res, status) => {
+                if (status == 'OK') {
+                    directionsRenderer.setDirections(res);
+                    document.getElementById("distanciaText").innerText = "Distancia: " + res.routes[0].legs[0].distance.text;
                 }
             });
-        }, 3000); // Revisa cada 3 segundos si ya pusiste el precio
-    }
-</script>
+        }
+
+        function enviarPedido() {
+            const btn = document.getElementById('btnSolicitar');
+            const data = {
+                nombre: document.getElementById("nombre").value,
+                apellido: document.getElementById("apellido").value,
+                telefono: document.getElementById("telefono").value,
+                origen: markerA.getPosition().toString(),
+                destino: markerB.getPosition().toString(),
+                distancia: document.getElementById("distanciaText").innerText
+            };
+
+            if(!data.nombre || !data.telefono) return alert("Por favor llena tus datos");
+
+            btn.innerText = "ENVIANDO...";
+            btn.disabled = true;
+
+            // Enviamos los datos a Google Sheets
+            fetch(WEB_APP_URL, {
+                method: "POST",
+                mode: "no-cors", // Para evitar problemas de permisos
+                body: JSON.stringify(data)
+            }).then(() => {
+                // Como usamos no-cors, no recibimos el ID directo, pero sabemos que se envió.
+                // Mostramos pantalla de espera
+                document.getElementById('contenido-app').innerHTML = `
+                    <div class="espera-container">
+                        <h2 style="color:#1a73e8;">¡Solicitud Recibida!</h2>
+                        <div class="loader"></div>
+                        <p id="msg-estado">Manuel está calculando tu presupuesto...</p>
+                        <p style="font-size:12px; color:gray;">No cierres esta ventana.</p>
+                    </div>`;
+                iniciarRastreo(data.nombre);
+            });
+        }
+
+        function iniciarRastreo(nombreCliente) {
+            const intervalo = setInterval(() => {
+                // Buscamos si Manuel ya puso el precio en el Excel
+                fetch(`${WEB_APP_URL}?checkPrice=true&id=${nombreCliente}`)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.precio && res.precio !== "") {
+                        clearInterval(intervalo);
+                        document.getElementById('contenido-app').innerHTML = `
+                            <div class="espera-container">
+                                <h2 style="color:#28a745;">¡Presupuesto Listo!</h2>
+                                <h1 style="font-size:48px;">$${res.precio}</h1>
+                                <p>Manuel ya tiene tu ruta lista.</p>
+                                <button onclick="location.reload()" style="width:100%; padding:15px; background:#1a73e8; color:white; border:none; border-radius:8px;">ACEPTAR</button>
+                            </div>`;
+                    }
+                });
+            }, 4000); // Revisa cada 4 segundos
+        }
+    </script>
+</body>
+</html>
