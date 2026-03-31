@@ -1,0 +1,49 @@
+<script>
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxlZNpKVKXhPMq9-tcr-t2ba94GbXiDBEI2PKh9zRkpwgiduy0TPh7HuBgbhywLzh2Q/exec";
+    let viajeId = "";
+
+    function enviarPedido() {
+        const btn = document.getElementById('btnSolicitar');
+        const data = {
+            nombre: document.getElementById("nombre").value,
+            apellido: document.getElementById("apellido").value,
+            telefono: document.getElementById("telefono").value,
+            origen: markerA.getPosition().toString(),
+            destino: markerB.getPosition().toString(),
+            distancia: document.getElementById("distanciaText").innerText
+        };
+
+        btn.innerText = "ENVIANDO...";
+        btn.disabled = true;
+
+        fetch(WEB_APP_URL, { method: "POST", body: JSON.stringify(data) })
+        .then(res => res.json())
+        .then(res => {
+            viajeId = res.id;
+            document.body.innerHTML = `
+                <div style="text-align:center; padding:50px;">
+                    <h2 style="color:#1a73e8;">¡Solicitud Recibida!</h2>
+                    <p>ID: ${viajeId}</p>
+                    <div id="status">⏳ Esperando presupuesto de Manuel...</div>
+                    <p style="font-size:12px; color:gray;">No cierres esta ventana.</p>
+                </div>`;
+            iniciarRastreoPrecio();
+        });
+    }
+
+    function iniciarRastreoPrecio() {
+        const intervalo = setInterval(() => {
+            fetch(`${WEB_APP_URL}?checkPrice=true&id=${viajeId}`)
+            .then(res => res.json())
+            .then(res => {
+                if (res.precio && res.precio !== "") {
+                    clearInterval(intervalo);
+                    document.getElementById('status').innerHTML = `
+                        <h3 style="color:#28a745;">Monto a pagar: $${res.precio}</h3>
+                        <button onclick="location.reload()" style="background:#1a73e8; color:white; border:none; padding:15px; border-radius:8px;">ACEPTAR Y FINALIZAR</button>
+                    `;
+                }
+            });
+        }, 3000); // Revisa cada 3 segundos si ya pusiste el precio
+    }
+</script>
