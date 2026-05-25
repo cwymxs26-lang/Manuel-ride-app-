@@ -1,167 +1,42 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asistencia Vial Express</title>
-    <style>
-        :root {
-            --primary: #ff5722;
-            --dark: #1e293b;
-            --bg: #f8fafc;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
-        body { background-color: var(--bg); display: flex; justify-content: center; min-height: 100vh; }
-        
-        .app-container { 
-            background: white; 
-            width: 100%; 
-            max-width: 480px; 
-            display: flex; 
-            flex-direction: column; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-
-        header { 
-            background: var(--dark); 
-            color: white; 
-            padding: 20px; 
-            text-align: center; 
-            font-size: 1.3rem; 
-            font-weight: bold;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-
-        .content { padding: 25px; flex: 1; }
-
-        .view { display: none; }
-        .view.active { display: block; animation: fadeIn 0.3s ease; }
-
-        label { display: block; margin-bottom: 5px; font-weight: 600; color: #475569; font-size: 0.9rem; }
-        input, select { 
-            width: 100%; 
-            padding: 12px; 
-            margin-bottom: 20px; 
-            border: 1px solid #cbd5e1; 
-            border-radius: 10px; 
-            font-size: 1rem;
-            background: #fff;
-        }
-
-        .btn-main { 
-            background: var(--primary); 
-            color: white; 
-            border: none; 
-            padding: 16px; 
-            width: 100%; 
-            border-radius: 10px; 
-            font-size: 1.1rem; 
-            font-weight: bold; 
-            cursor: pointer;
-            transition: transform 0.1s;
-        }
-
-        .btn-main:active { transform: scale(0.98); }
-
-        /* Pantalla de carga */
-        .loader { 
-            border: 5px solid #f3f3f3; 
-            border-top: 5px solid var(--primary); 
-            border-radius: 50%; 
-            width: 60px; 
-            height: 60px; 
-            animation: spin 1s linear infinite; 
-            margin: 30px auto; 
-        }
-
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        .status-card { text-align: center; padding-top: 40px; }
-        .success-icon { color: #10b981; font-size: 4rem; margin-bottom: 20px; }
-    </style>
-</head>
-<body>
-
-<div class="app-container">
-    <header>🚗 Asistencia Express</header>
-    
-    <div class="content">
-        <div id="vista-solicitud" class="view active">
-            <form id="formViaje">
-                <label>Tu Nombre completo</label>
-                <input type="text" name="nombre" placeholder="Ej. Juan Pérez" required>
-
-                <label>Teléfono de contacto</label>
-                <input type="tel" name="telefono" placeholder="Para que el chofer te llame" required>
-
-                <label>Ubicación Actual (Origen)</label>
-                <input type="text" id="origenText" name="origen" placeholder="Detectando GPS..." required>
-                
-                <label>Destino o Referencia</label>
-                <input type="text" name="destino" placeholder="¿A dónde llevamos el vehículo?" required>
-
-                <input type="hidden" id="lat" name="latitud">
-                <input type="hidden" id="lng" name="longitud">
-
-                <button type="submit" class="btn-main" id="btnEnviar">Pedir Asistencia Ahora</button>
-            </form>
-        </div>
-
-        <div id="vista-procesando" class="view status-card">
-            <h2>Buscando unidad...</h2>
-            <p>Estamos enviando tu ubicación a nuestros conductores.</p>
-            <div class="loader"></div>
-        </div>
-
-        <div id="vista-exito" class="view status-card">
-            <div class="success-icon">✓</div>
-            <h2>¡Solicitud Recibida!</h2>
-            <p>Un conductor ha sido notificado y se comunicará contigo en menos de 5 minutos.</p>
-            <br>
-            <button class="btn-main" onclick="location.reload()" style="background:#1e293b">Nueva Solicitud</button>
-        </div>
-    </div>
-</div>
-
 <script>
-    // TU URL DE GOOGLE APPS SCRIPT
-    const scriptURL = 'https://script.google.com/macros/s/AKfycbzGxcMpExaBrX6SN65OPAbJyaf4FxNUdKjSXxPwvZ6t9xoCrw-pOhxb3AToNt4k1yiS/exec;
-    
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbzGxcMpExaBrX6SN65OPAbJyaf4FxNUdKjSXxPwvZ6t9xoCrw-pOhxb3AToNt4k1yiS/exec';
     const form = document.getElementById('formViaje');
     const origenInput = document.getElementById('origenText');
 
-    // Al cargar la página, intentamos obtener el GPS
+    // 1. Obtener GPS al cargar
     window.onload = function() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function(position) {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
-                document.getElementById('lat').value = lat;
-                document.getElementById('lng').value = lng;
-                origenInput.value = "Ubicación detectada (GPS)";
-            }, function(error) {
-                origenInput.placeholder = "Escribe tu dirección manualmente";
+                document.getElementById('lat').value = position.coords.latitude;
+                document.getElementById('lng').value = position.coords.longitude;
+                origenInput.value = "Ubicación GPS detectada ✅";
             });
         }
     };
 
-    // Manejo del envío del formulario
+    // 2. ENVIAR DATOS (Corregido para evitar pantalla en blanco)
     form.addEventListener('submit', e => {
-        e.preventDefault();
+        e.preventDefault(); // <--- ESTO ES VITAL: Detiene la recarga de página
+        
         cambiarVista('vista-procesando');
 
+        // Usamos fetch de una forma que Google Apps Script acepta sin errores de CORS
         fetch(scriptURL, { 
             method: 'POST', 
-            body: new FormData(form)
+            body: new FormData(form),
+            mode: 'no-cors' // <--- Añade esto para evitar bloqueos del navegador
         })
-        .then(response => {
-            cambiarVista('vista-exito');
-            form.reset();
+        .then(() => {
+            // Con 'no-cors' Google no responde un mensaje claro, 
+            // así que después de enviar, esperamos 1.5 segundos y mostramos éxito
+            setTimeout(() => {
+                cambiarVista('vista-exito');
+                form.reset();
+            }, 1500);
         })
         .catch(error => {
-            alert('Error de conexión. Revisa tu internet.');
+            console.error('Error!', error.message);
+            alert('Error al enviar. Verifica tu conexión.');
             cambiarVista('vista-solicitud');
         });
     });
@@ -171,6 +46,3 @@
         document.getElementById(id).classList.add('active');
     }
 </script>
-
-</body>
-</html>
